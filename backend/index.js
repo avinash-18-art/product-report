@@ -12,7 +12,7 @@ const PORT = 5000;
 app.use(cors());
 const upload = multer({ dest: 'uploads/' });
 
-// ✅ Updated: Helper to categorize rows by status
+
 function categorizeRows(rows) {
   const categories = {
     delivered: [],
@@ -25,7 +25,7 @@ function categorizeRows(rows) {
   };
 
   rows.forEach(row => {
-    // ✅ Find the status field dynamically (status, Status, Order Status, etc.)
+    
     const statusKey = Object.keys(row).find(
       key => key.toLowerCase().includes('status')
     );
@@ -44,7 +44,7 @@ function categorizeRows(rows) {
   return categories;
 }
 
-// ✅ Upload endpoint
+
 app.post('/upload', upload.single('file'), (req, res) => {
   const file = req.file;
   const ext = path.extname(file.originalname).toLowerCase();
@@ -60,7 +60,7 @@ app.post('/upload', upload.single('file'), (req, res) => {
       .pipe(csv())
       .on('data', (data) => results.push(data))
       .on('end', () => {
-        fs.unlinkSync(file.path); // Clean up
+        fs.unlinkSync(file.path); 
         const categorized = categorizeRows(results);
         res.json(categorized);
       });
@@ -69,7 +69,7 @@ app.post('/upload', upload.single('file'), (req, res) => {
     const workbook = XLSX.readFile(file.path);
     const sheetName = workbook.SheetNames[0];
     const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
-    fs.unlinkSync(file.path); // Clean up
+    fs.unlinkSync(file.path); 
     const categorized = categorizeRows(jsonData);
     res.json(categorized);
   } else {
