@@ -1,0 +1,158 @@
+
+.App {
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(to bottom, #85006b, #b10088, #f43397);
+  min-height: 100vh;
+  padding-top: 90px; 
+  text-align: center;
+  color: #fff;
+  box-sizing: border-box;
+}
+
+
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  background-color: #85006b;
+  color: white;
+  padding: 15px 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 999;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  box-sizing: border-box;
+}
+
+.navbar-logo {
+  font-size: 26px;
+  font-weight: bold;
+  color: #ffdeec;
+}
+
+.navbar-links a {
+  color: #ffe2f1;
+  text-decoration: none;
+  margin-left: 25px;
+  font-weight: 500;
+  font-size: 16px;
+}
+
+.navbar-links a:hover {
+  text-decoration: underline;
+}
+
+
+h1 {
+  font-size: 28px;
+  margin: 30px 0;
+  color: #fff;
+}
+
+
+.status-boxes {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 0 20px;
+  margin-bottom: 40px;
+}
+
+.box {
+  flex: 1 1 200px;
+  background-color: #fff;
+  border-radius: 20px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  padding: 25px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #444;
+  transition: transform 0.2s ease-in-out;
+  max-width: 220px;
+}
+
+.box:hover {
+  transform: translateY(-8px);
+}
+
+.box span {
+  display: block;
+  font-size: 36px;
+  color: #111;
+  margin-top: 10px;
+  font-weight: bold;
+}
+
+
+.delivered { border-top: 6px solid #4caf50; }
+.shipped   { border-top: 6px solid #2196f3; }
+.buy       { border-top: 6px solid #9c27b0; }
+.rto       { border-top: 6px solid #ff9800; }
+.return    { border-top: 6px solid #f44336; }
+
+
+.upload-section {
+  margin-top: 20px;
+  padding: 20px;
+}
+
+input[type="file"] {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+button {
+  padding: 12px 24px;
+  background-color: #ff007f;
+  color: white;
+  font-size: 15px;
+  border: none;
+  border-radius: 10px;
+  margin-left: 10px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+button:hover {
+  background-color: #cc0066;
+}
+
+
+@media (max-width: 768px) {
+  .status-boxes {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .box {
+    max-width: 90%;
+  }
+
+  .navbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .navbar-links {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .navbar-links a {
+    display: block;
+    margin: 8px 0;
+  }
+}
+
+.heading{
+    color: rgb(224, 152, 7);
+    font-weight: bold;
+}
