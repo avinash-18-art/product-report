@@ -4,15 +4,21 @@ import './Excel.css';
 
 function App() {
   const [file, setFile] = useState(null);
+
+  // ✅ All categories from backend (same as name.txt but lowercase in state keys)
   const [data, setData] = useState({
+    all: 0,
+    rto_complete: 0,
+    door_step_exchanged: 0,
     delivered: 0,
-    rto: 0,
-    pending: 0,
-    return: 0,
-    cancel: 0,
+    cancelled: 0,
+    rto_locked: 0,
+    ready_to_ship: 0,
     shipped: 0,
-    other: 0,
+    rto_initiated: 0,
+    other: 0
   });
+
   const [dragActive, setDragActive] = useState(false);
 
   const handleFileChange = (e) => {
@@ -65,21 +71,23 @@ function App() {
 
     try {
       const res = await axios.post('http://localhost:5000/upload', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
 
       const result = res.data;
 
+      // ✅ Map backend result counts to state
       setData({
+        all: result.all?.length || 0,
+        rto_complete: result.rto_complete?.length || 0,
+        door_step_exchanged: result.door_step_exchanged?.length || 0,
         delivered: result.delivered?.length || 0,
-        rto: result.rto?.length || 0,
-        pending: result.pending?.length || 0,
-        return: result.return?.length || 0,
-        cancel: result.cancel?.length || 0,
+        cancelled: result.cancelled?.length || 0,
+        rto_locked: result.rto_locked?.length || 0,
+        ready_to_ship: result.ready_to_ship?.length || 0,
         shipped: result.shipped?.length || 0,
-        other: result.other?.length || 0,
+        rto_initiated: result.rto_initiated?.length || 0,
+        other: result.other?.length || 0
       });
     } catch (err) {
       console.error('Upload failed', err);
@@ -101,29 +109,41 @@ function App() {
       <h1 className="heading">Product Status Dashboard</h1>
 
       <div className="status-boxes">
-        <div className="box buy">
+        <div className="box all">
+          All<br />
+          <span>{data.all}</span>
+        </div>
+        <div className="box rto_complete">
+          RTO Complete<br />
+          <span>{data.rto_complete}</span>
+        </div>
+        <div className="box door_step_exchanged">
+          Door Step Exchanged<br />
+          <span>{data.door_step_exchanged}</span>
+        </div>
+        <div className="box delivered">
           Delivered<br />
           <span>{data.delivered}</span>
         </div>
-        <div className="box rto">
+        <div className="box cancelled">
+          Cancelled<br />
+          <span>{data.cancelled}</span>
+        </div>
+        <div className="box rto_locked">
+          RTO Locked<br />
+          <span>{data.rto_locked}</span>
+        </div>
+        <div className="box ready_to_ship">
           Pending<br />
-          <span>{data.pending}</span>
-        </div>
-        <div className="box return">
-          Return<br />
-          <span>{data.return}</span>
-        </div>
-        <div className="box cancel">
-          Cancel<br />
-          <span>{data.cancel}</span>
+          <span>{data.ready_to_ship}</span>
         </div>
         <div className="box shipped">
           Shipped<br />
           <span>{data.shipped}</span>
         </div>
-        <div className="box other">
-          RTO<br />
-          <span>{data.rto}</span>
+        <div className="box rto_initiated">
+          RTO Initiated<br />
+          <span>{data.rto_initiated}</span>
         </div>
         <div className="box other">
           Other<br />
