@@ -17,7 +17,12 @@ function App() {
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files?.[0];
-    if (selectedFile && (selectedFile.name.endsWith('.csv') || selectedFile.name.endsWith('.xlsx') || selectedFile.name.endsWith('.xls'))) {
+    if (
+      selectedFile &&
+      (selectedFile.name.endsWith('.csv') ||
+        selectedFile.name.endsWith('.xlsx') ||
+        selectedFile.name.endsWith('.xls'))
+    ) {
       setFile(selectedFile);
     } else {
       alert('Please upload a valid CSV or Excel file');
@@ -28,7 +33,12 @@ function App() {
     e.preventDefault();
     setDragActive(false);
     const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile && (droppedFile.name.endsWith('.csv') || droppedFile.name.endsWith('.xlsx') || droppedFile.name.endsWith('.xls'))) {
+    if (
+      droppedFile &&
+      (droppedFile.name.endsWith('.csv') ||
+        droppedFile.name.endsWith('.xlsx') ||
+        droppedFile.name.endsWith('.xls'))
+    ) {
       setFile(droppedFile);
     } else {
       alert('Only .csv or .xlsx files are supported');
@@ -62,7 +72,6 @@ function App() {
 
       const result = res.data;
 
-      // Set values from API response
       setData({
         delivered: result.delivered?.length || 0,
         rto: result.rto?.length || 0,
@@ -72,10 +81,9 @@ function App() {
         shipped: result.shipped?.length || 0,
         other: result.other?.length || 0,
       });
-
     } catch (err) {
-      console.error("Upload failed", err);
-      alert("Upload failed");
+      console.error('Upload failed', err);
+      alert('Upload failed');
     }
   };
 
@@ -90,19 +98,40 @@ function App() {
         </div>
       </nav>
 
-      <h1 className='heading'>Product Status Dashboard</h1>
+      <h1 className="heading">Product Status Dashboard</h1>
 
       <div className="status-boxes">
-        
-        <div  className="box buy">Delivered<br /><span>{data.other}</span></div>
-        <div className="box rto">Pending<br /><span>{data.pending}</span></div>
-        <div className="box return">Return<br /><span>{data.return}</span></div>
-        <div className="box return">Cancel<br /><span>{data.cancel}</span></div>
-        <div className="box shipped">Shipped<br /><span>{data.shipped}</span></div>
-        
+        <div className="box buy">
+          Delivered<br />
+          <span>{data.delivered}</span>
+        </div>
+        <div className="box rto">
+          Pending<br />
+          <span>{data.pending}</span>
+        </div>
+        <div className="box return">
+          Return<br />
+          <span>{data.return}</span>
+        </div>
+        <div className="box cancel">
+          Cancel<br />
+          <span>{data.cancel}</span>
+        </div>
+        <div className="box shipped">
+          Shipped<br />
+          <span>{data.shipped}</span>
+        </div>
+        <div className="box other">
+          RTO<br />
+          <span>{data.rto}</span>
+        </div>
+        <div className="box other">
+          Other<br />
+          <span>{data.other}</span>
+        </div>
       </div>
 
-      <div 
+      <div
         className={`upload-section ${dragActive ? 'drag-active' : ''}`}
         onDrop={handleDrop}
         onDragOver={handleDragOver}

@@ -12,7 +12,7 @@ const PORT = 5000;
 app.use(cors());
 const upload = multer({ dest: 'uploads/' });
 
-
+// Updated categorization to match your Excel file
 function categorizeRows(rows) {
   const categories = {
     delivered: [],
@@ -25,17 +25,13 @@ function categorizeRows(rows) {
   };
 
   rows.forEach(row => {
-    
-    const statusKey = Object.keys(row).find(
-      key => key.toLowerCase().includes('status')
-    );
-
-    const status = (row[statusKey] || '').toLowerCase().trim();
+    // Use the exact column name from your Excel
+    const status = (row['Reason for Credit Entry'] || '').toLowerCase().trim();
 
     if (status.includes('delivered')) categories.delivered.push(row);
-    else if (status.includes('pending')) categories.pending.push(row);
+    else if (status.includes('pending') || status.includes('ready_to_ship')) categories.pending.push(row);
     else if (status.includes('rto')) categories.rto.push(row);
-    else if (status.includes('return')) categories.return.push(row);
+    else if (status.includes('exchange') || status.includes('return')) categories.return.push(row);
     else if (status.includes('shipped')) categories.shipped.push(row);
     else if (status.includes('cancel')) categories.cancel.push(row);
     else categories.other.push(row);
@@ -44,35 +40,30 @@ function categorizeRows(rows) {
   return categories;
 }
 
-
 app.post('/upload', upload.single('file'), (req, res) => {
   const file = req.file;
-  const ext = path.extname(file.originalname).toLowerCase();
+  if (!file) return res.status(400).json({ error: 'No file uploaded' });
 
-  if (!file) {
-    return res.status(400).json({ error: 'No file uploaded' });
-  }
+  const ext = path.extname(file.originalname).toLowerCase();
 
   if (ext === '.csv') {
     const results = [];
-
     fs.createReadStream(file.path)
       .pipe(csv())
       .on('data', (data) => results.push(data))
       .on('end', () => {
-        fs.unlinkSync(file.path); 
-        const categorized = categorizeRows(results);
-        res.json(categorized);
+        fs.unlinkSync(file.path);
+        res.json(categorizeRows(results));
       });
-
-  } else if (ext === '.xlsx' || ext === '.xls') {
+  } 
+  else if (ext === '.xlsx' || ext === '.xls') {
     const workbook = XLSX.readFile(file.path);
     const sheetName = workbook.SheetNames[0];
     const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
-    fs.unlinkSync(file.path); 
-    const categorized = categorizeRows(jsonData);
-    res.json(categorized);
-  } else {
+    fs.unlinkSync(file.path);
+    res.json(categorizeRows(jsonData));
+  } 
+  else {
     fs.unlinkSync(file.path);
     res.status(400).json({ error: 'Unsupported file format' });
   }
