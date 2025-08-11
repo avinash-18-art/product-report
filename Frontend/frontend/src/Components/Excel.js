@@ -5,7 +5,7 @@ import './Excel.css';
 function App() {
   const [file, setFile] = useState(null);
 
-  // ✅ All categories from backend (same as name.txt but lowercase in state keys)
+  
   const [data, setData] = useState({
     all: 0,
     rto_complete: 0,
@@ -76,7 +76,7 @@ function App() {
 
       const result = res.data;
 
-      // ✅ Map backend result counts to state
+      
       setData({
         all: result.all?.length || 0,
         rto_complete: result.rto_complete?.length || 0,
