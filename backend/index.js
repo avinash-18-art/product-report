@@ -26,14 +26,14 @@ const statusList = [
   "supplier_discounted_price"
 ];
 
-// ✅ Clean and convert prices
+
 function parsePrice(value) {
   if (!value) return 0;
   let clean = value.toString().trim().replace(/[^0-9.\-]/g, '');
   return parseFloat(clean) || 0;
 }
 
-// ✅ Get column value by checking multiple possible header names
+
 function getColumnValue(row, possibleNames) {
   const keys = Object.keys(row).map(k => k.toLowerCase().trim());
   for (let name of possibleNames) {
@@ -58,20 +58,20 @@ function categorizeRows(rows) {
   rows.forEach(row => {
     const status = (row['Reason for Credit Entry'] || '').toLowerCase().trim();
 
-    // Add to "all"
+    
     categories["all"].push(row);
 
-    // ✅ Match listed price columns
+    
     const listedPrice = parsePrice(getColumnValue(row, [
       'Supplier Listed Price (Incl. GST + Commission)',
       'Supplier Listed Price',
       'Listed Price'
     ]));
 
-    // ✅ Match discounted price columns — includes the CSV’s “Commision” typo
+    
     const discountedPrice = parsePrice(getColumnValue(row, [
-      'Supplier Discounted Price (Incl GST and Commission)', // correct spelling
-      'Supplier Discounted Price (Incl GST and Commision)',  // CSV typo spelling
+      'Supplier Discounted Price (Incl GST and Commission)', 
+      'Supplier Discounted Price (Incl GST and Commision)',  
       'Supplier Discounted Price',
       'Discounted Price'
     ]));
@@ -79,7 +79,7 @@ function categorizeRows(rows) {
     totalSupplierListedPrice += listedPrice;
     totalSupplierDiscountedPrice += discountedPrice;
 
-    // Match by status
+    
     let matched = false;
     statusList.forEach(s => {
       if (s !== "all" && status.includes(s)) {
@@ -93,7 +93,7 @@ function categorizeRows(rows) {
     }
   });
 
-  // Add totals
+  
   categories.totals = {
     totalSupplierListedPrice,
     totalSupplierDiscountedPrice
