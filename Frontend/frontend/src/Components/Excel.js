@@ -5,7 +5,6 @@ import './Excel.css';
 function App() {
   const [file, setFile] = useState(null);
 
-  
   const [data, setData] = useState({
     all: 0,
     rto_complete: 0,
@@ -16,7 +15,9 @@ function App() {
     ready_to_ship: 0,
     shipped: 0,
     rto_initiated: 0,
-    other: 0
+    other: 0,
+    totalSupplierListedPrice: 0,
+    totalSupplierDiscountedPrice: 0
   });
 
   const [dragActive, setDragActive] = useState(false);
@@ -76,7 +77,6 @@ function App() {
 
       const result = res.data;
 
-      
       setData({
         all: result.all?.length || 0,
         rto_complete: result.rto_complete?.length || 0,
@@ -87,7 +87,9 @@ function App() {
         ready_to_ship: result.ready_to_ship?.length || 0,
         shipped: result.shipped?.length || 0,
         rto_initiated: result.rto_initiated?.length || 0,
-        other: result.other?.length || 0
+        other: result.other?.length || 0,
+        totalSupplierListedPrice: result.totals?.totalSupplierListedPrice || 0,
+        totalSupplierDiscountedPrice: result.totals?.totalSupplierDiscountedPrice || 0
       });
     } catch (err) {
       console.error('Upload failed', err);
@@ -148,6 +150,16 @@ function App() {
         <div className="box other">
           Other<br />
           <span>{data.other}</span>
+        </div>
+
+        <div className="box other">
+          Supplier Listed Total Price (Incl. GST + Commission)<br />
+          <span>{data.totalSupplierListedPrice.toLocaleString()}</span>
+        </div>
+
+        <div className="box other">
+          Supplier Discounted Total Price (Incl GST and Commission)<br />
+          <span>{data.totalSupplierDiscountedPrice.toLocaleString()}</span>
         </div>
       </div>
 
