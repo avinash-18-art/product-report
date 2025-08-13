@@ -12,6 +12,9 @@ const PORT = 5000;
 app.use(cors());
 const upload = multer({ dest: 'uploads/' });
 
+// Store uploaded data in memory so we can filter later
+let uploadedData = [];
+
 const statusList = [
   "all",
   "rto_complete",
@@ -26,13 +29,11 @@ const statusList = [
   "supplier_discounted_price"
 ];
 
-
 function parsePrice(value) {
   if (!value) return 0;
   let clean = value.toString().trim().replace(/[^0-9.\-]/g, '');
   return parseFloat(clean) || 0;
 }
-
 
 function getColumnValue(row, possibleNames) {
   const keys = Object.keys(row).map(k => k.toLowerCase().trim());
@@ -58,17 +59,14 @@ function categorizeRows(rows) {
   rows.forEach(row => {
     const status = (row['Reason for Credit Entry'] || '').toLowerCase().trim();
 
-    
     categories["all"].push(row);
 
-    
     const listedPrice = parsePrice(getColumnValue(row, [
       'Supplier Listed Price (Incl. GST + Commission)',
       'Supplier Listed Price',
       'Listed Price'
     ]));
 
-    
     const discountedPrice = parsePrice(getColumnValue(row, [
       'Supplier Discounted Price (Incl GST and Commission)', 
       'Supplier Discounted Price (Incl GST and Commision)',  
@@ -79,7 +77,6 @@ function categorizeRows(rows) {
     totalSupplierListedPrice += listedPrice;
     totalSupplierDiscountedPrice += discountedPrice;
 
-    
     let matched = false;
     statusList.forEach(s => {
       if (s !== "all" && status.includes(s)) {
@@ -93,7 +90,6 @@ function categorizeRows(rows) {
     }
   });
 
-  
   categories.totals = {
     totalSupplierListedPrice,
     totalSupplierDiscountedPrice
@@ -102,6 +98,7 @@ function categorizeRows(rows) {
   return categories;
 }
 
+// Upload route
 app.post('/upload', upload.single('file'), (req, res) => {
   const file = req.file;
   if (!file) return res.status(400).json({ error: 'No file uploaded' });
@@ -115,6 +112,7 @@ app.post('/upload', upload.single('file'), (req, res) => {
       .on('data', (data) => results.push(data))
       .on('end', () => {
         fs.unlinkSync(file.path);
+        uploadedData = results; // Save in memory
         res.json(categorizeRows(results));
       });
   } else if (ext === '.xlsx' || ext === '.xls') {
@@ -122,11 +120,50 @@ app.post('/upload', upload.single('file'), (req, res) => {
     const sheetName = workbook.SheetNames[0];
     const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
     fs.unlinkSync(file.path);
+    uploadedData = jsonData; // Save in memory
     res.json(categorizeRows(jsonData));
   } else {
     fs.unlinkSync(file.path);
     res.status(400).json({ error: 'Unsupported file format' });
   }
+});
+
+// New filter route
+app.get('/filter/:subOrderNo', (req, res) => {
+  const subOrderNo = req.params.subOrderNo.trim().toLowerCase();
+  
+  if (!uploadedData.length) {
+    return res.status(400).json({ error: 'No file uploaded yet' });
+  }
+
+  const match = uploadedData.find(row => {
+    const val = Object.values(row).find(v => 
+      v && v.toString().trim().toLowerCase() === subOrderNo
+    );
+    return Boolean(val);
+  });
+
+  if (!match) {
+    return res.status(404).json({ error: 'Sub Order No not found' });
+  }
+
+  const listedPrice = parsePrice(getColumnValue(match, [
+    'Supplier Listed Price (Incl. GST + Commission)',
+    'Supplier Listed Price',
+    'Listed Price'
+  ]));
+
+  const discountedPrice = parsePrice(getColumnValue(match, [
+    'Supplier Discounted Price (Incl GST and Commission)', 
+    'Supplier Discounted Price (Incl GST and Commision)',  
+    'Supplier Discounted Price',
+    'Discounted Price'
+  ]));
+
+  res.json({
+    listedPrice,
+    discountedPrice
+  });
 });
 
 app.listen(PORT, () => {
