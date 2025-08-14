@@ -5,12 +5,13 @@ const csv = require('csv-parser');
 const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
-const { MongoClient } = require('mongodb'); 
+const { MongoClient } = require('mongodb');
 
 const app = express();
 const PORT = 5000;
 
-const MONGO_URI = "mongodb://127.0.0.1:27017"; 
+// MongoDB Config
+const MONGO_URI = "mongodb://127.0.0.1:27017";
 const DB_NAME = "dashboard_db";
 let db;
 
@@ -23,7 +24,6 @@ MongoClient.connect(MONGO_URI, { useUnifiedTopology: true })
     console.error("❌ MongoDB connection failed:", err);
   });
 
-
 app.use(cors());
 app.use(express.json());
 
@@ -31,6 +31,7 @@ const upload = multer({ dest: 'uploads/' });
 
 let uploadedData = [];
 
+// Status categories
 const statusList = [
   "all",
   "rto_complete",
@@ -62,6 +63,7 @@ function getColumnValue(row, possibleNames) {
   return 0;
 }
 
+// Categorize & calculate totals
 function categorizeRows(rows) {
   const categories = {};
   statusList.forEach(status => {
@@ -71,6 +73,8 @@ function categorizeRows(rows) {
 
   let totalSupplierListedPrice = 0;
   let totalSupplierDiscountedPrice = 0;
+  let sellInMonthProducts = 0;
+  let totalProfit = 0;
 
   rows.forEach(row => {
     const status = (row['Reason for Credit Entry'] || '').toLowerCase().trim();
@@ -84,14 +88,19 @@ function categorizeRows(rows) {
     ]));
 
     const discountedPrice = parsePrice(getColumnValue(row, [
-      'Supplier Discounted Price (Incl GST and Commission)', 
-      'Supplier Discounted Price (Incl GST and Commision)',  
+      'Supplier Discounted Price (Incl GST and Commission)',
+      'Supplier Discounted Price (Incl GST and Commision)',
       'Supplier Discounted Price',
       'Discounted Price'
     ]));
 
     totalSupplierListedPrice += listedPrice;
     totalSupplierDiscountedPrice += discountedPrice;
+    totalProfit += (listedPrice - discountedPrice);
+
+    if (status.includes('delivered')) {
+      sellInMonthProducts += 1;
+    }
 
     let matched = false;
     statusList.forEach(s => {
@@ -108,13 +117,15 @@ function categorizeRows(rows) {
 
   categories.totals = {
     totalSupplierListedPrice,
-    totalSupplierDiscountedPrice
+    totalSupplierDiscountedPrice,
+    sellInMonthProducts,
+    totalProfit
   };
 
   return categories;
 }
 
-
+// File upload API
 app.post('/upload', upload.single('file'), (req, res) => {
   const file = req.file;
   if (!file) return res.status(400).json({ error: 'No file uploaded' });
@@ -128,7 +139,7 @@ app.post('/upload', upload.single('file'), (req, res) => {
       .on('data', (data) => results.push(data))
       .on('end', () => {
         fs.unlinkSync(file.path);
-        uploadedData = results; 
+        uploadedData = results;
         res.json(categorizeRows(results));
       });
   } else if (ext === '.xlsx' || ext === '.xls') {
@@ -136,7 +147,7 @@ app.post('/upload', upload.single('file'), (req, res) => {
     const sheetName = workbook.SheetNames[0];
     const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
     fs.unlinkSync(file.path);
-    uploadedData = jsonData; 
+    uploadedData = jsonData;
     res.json(categorizeRows(jsonData));
   } else {
     fs.unlinkSync(file.path);
@@ -144,16 +155,16 @@ app.post('/upload', upload.single('file'), (req, res) => {
   }
 });
 
-
+// Search specific order
 app.get('/filter/:subOrderNo', (req, res) => {
   const subOrderNo = req.params.subOrderNo.trim().toLowerCase();
-  
+
   if (!uploadedData.length) {
     return res.status(400).json({ error: 'No file uploaded yet' });
   }
 
   const match = uploadedData.find(row => {
-    const val = Object.values(row).find(v => 
+    const val = Object.values(row).find(v =>
       v && v.toString().trim().toLowerCase() === subOrderNo
     );
     return Boolean(val);
@@ -170,19 +181,39 @@ app.get('/filter/:subOrderNo', (req, res) => {
   ]));
 
   const discountedPrice = parsePrice(getColumnValue(match, [
-    'Supplier Discounted Price (Incl GST and Commission)', 
-    'Supplier Discounted Price (Incl GST and Commision)',  
+    'Supplier Discounted Price (Incl GST and Commission)',
+    'Supplier Discounted Price (Incl GST and Commision)',
     'Supplier Discounted Price',
     'Discounted Price'
   ]));
 
+  const profit = listedPrice - discountedPrice;
+
   res.json({
     listedPrice,
-    discountedPrice
+    discountedPrice,
+    profit
   });
 });
 
+// NEW: Profit calculation endpoint
+app.post('/calculate', (req, res) => {
+  const { listedPrice, discountedPrice } = req.body;
 
+  if (listedPrice === undefined || discountedPrice === undefined) {
+    return res.status(400).json({ error: 'Both prices are required' });
+  }
+
+  const profit = listedPrice - discountedPrice;
+  const profitPercent = discountedPrice !== 0 ? (profit / discountedPrice) * 100 : 0;
+
+  res.json({
+    profit,
+    profitPercent: profitPercent.toFixed(2)
+  });
+});
+
+// Save all data to MongoDB
 app.post('/submit-all', async (req, res) => {
   try {
     const submittedData = req.body;
@@ -193,7 +224,6 @@ app.post('/submit-all', async (req, res) => {
 
     const collection = db.collection("dashboard_data");
 
-    
     await collection.insertOne({
       submittedAt: new Date(),
       data: submittedData

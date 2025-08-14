@@ -19,8 +19,13 @@ function App() {
     rto_initiated: 0,
     other: 0,
     totalSupplierListedPrice: 0,
-    totalSupplierDiscountedPrice: 0
+    totalSupplierDiscountedPrice: 0,
+    sellInMonth: 0,
+    totalProfit: 0
   });
+
+  const [profit, setProfit] = useState(0);
+  const [profitPercent, setProfitPercent] = useState(0);
 
   const [dragActive, setDragActive] = useState(false);
   const [showFilteredView, setShowFilteredView] = useState(false);
@@ -79,6 +84,10 @@ function App() {
       });
 
       const result = res.data;
+      const totalListed = result.totals?.totalSupplierListedPrice || 0;
+      const totalDiscounted = result.totals?.totalSupplierDiscountedPrice || 0;
+      const sellInMonth = result.totals?.sellInMonth || 0;
+      const totalProfit = result.totals?.totalProfit || 0;
 
       setData({
         all: result.all?.length || 0,
@@ -91,9 +100,18 @@ function App() {
         shipped: result.shipped?.length || 0,
         rto_initiated: result.rto_initiated?.length || 0,
         other: result.other?.length || 0,
-        totalSupplierListedPrice: result.totals?.totalSupplierListedPrice || 0,
-        totalSupplierDiscountedPrice: result.totals?.totalSupplierDiscountedPrice || 0
+        totalSupplierListedPrice: totalListed,
+        totalSupplierDiscountedPrice: totalDiscounted,
+        sellInMonth,
+        totalProfit
       });
+
+      const calcProfitPercent = totalDiscounted
+        ? (totalProfit / totalDiscounted) * 100
+        : 0;
+
+      setProfit(totalProfit);
+      setProfitPercent(calcProfitPercent.toFixed(2));
 
       setShowFilteredView(false);
     } catch (err) {
@@ -110,7 +128,19 @@ function App() {
 
     try {
       const res = await axios.get(`http://localhost:5000/filter/${subOrderNo}`);
+      const listed = res.data.listedPrice || 0;
+      const discounted = res.data.discountedPrice || 0;
+
       setFilterResult(res.data);
+
+      const calcProfit = listed - discounted;
+      const calcProfitPercent = discounted
+        ? (calcProfit / discounted) * 100
+        : 0;
+
+      setProfit(calcProfit);
+      setProfitPercent(calcProfitPercent.toFixed(2));
+
       setShowFilteredView(true);
     } catch (err) {
       console.error("Filter failed", err);
@@ -118,7 +148,6 @@ function App() {
     }
   };
 
-  
   const handleSubmitAll = async () => {
     try {
       const res = await axios.post("http://localhost:5000/submit-all", data, {
@@ -137,17 +166,17 @@ function App() {
         <div className="navbar-logo">Meesho</div>
 
         <div className="navbar-search">
-          <input 
-            type="search" 
-            placeholder="Add here Sub Order No" 
+          <input
+            type="search"
+            placeholder="Add here Sub Order No"
             value={subOrderNo}
             onChange={(e) => setSubOrderNo(e.target.value)}
           />
           <button className="filter-btn" onClick={handleFilter}>Filter</button>
 
           {showFilteredView && (
-            <button 
-              className="back-btn" 
+            <button
+              className="back-btn"
               onClick={() => setShowFilteredView(false)}
               style={{
                 marginLeft: '8px',
@@ -157,8 +186,8 @@ function App() {
                 border: 'none',
                 borderRadius: '8px',
                 cursor: 'pointer',
-                height:"38px",
-                width:"60px"
+                height: "38px",
+                width: "60px"
               }}
             >
               Back
@@ -187,26 +216,28 @@ function App() {
           <div className="box shipped">Shipped<br /><span>{data.shipped}</span></div>
           <div className="box rto_initiated">RTO Initiated<br /><span>{data.rto_initiated}</span></div>
           <div className="box other">Other<br /><span>{data.other}</span></div>
-          <div className="box other">Supplier Listed Total Price (Incl. GST + Commission)<br /><span>{data.totalSupplierListedPrice.toLocaleString()}</span></div>
-          <div className="box other">Supplier Discounted Total Price (Incl GST and Commission)<br /><span>{data.totalSupplierDiscountedPrice.toLocaleString()}</span></div>
+          <div className="box other">Supplier Listed Total Price<br /><span>{data.totalSupplierListedPrice.toLocaleString()}</span></div>
+          <div className="box other">Supplier Discounted Total Price<br /><span>{data.totalSupplierDiscountedPrice.toLocaleString()}</span></div>
+          
+          <div className="box other">Total Profit<br /><span>{data.totalProfit.toLocaleString()}</span></div>
+          <div className="box other">Profit %<br /><span>{profitPercent}%</span></div>
         </div>
       ) : (
         filterResult && (
           <div className="status-boxes">
             <div className="box other">
-              Supplier Listed Price (Incl. GST + Commission)<br />
+              Supplier Listed Price<br />
               <span>{filterResult.listedPrice.toLocaleString()}</span>
             </div>
             <div className="box other">
-              Supplier Discounted Price (Incl GST and Commission)<br />
+              Supplier Discounted Price<br />
               <span>{filterResult.discountedPrice.toLocaleString()}</span>
             </div>
+            
           </div>
         )
       )}
 
-      
-     
       <div
         className={`upload-section ${dragActive ? 'drag-active' : ''}`}
         onDrop={handleDrop}
@@ -222,9 +253,10 @@ function App() {
         {file && <p className="filename">Selected File: {file.name}</p>}
         <button onClick={handleUpload}>Upload File</button>
       </div>
-       <div style={{ marginTop: "20px" }}>
-        <button 
-          onClick={handleSubmitAll} 
+
+      <div style={{ marginTop: "20px" }}>
+        <button
+          onClick={handleSubmitAll}
           style={{
             backgroundColor: "#28a745",
             color: "#fff",
@@ -238,7 +270,6 @@ function App() {
           Submit All
         </button>
       </div>
-
     </div>
   );
 }
