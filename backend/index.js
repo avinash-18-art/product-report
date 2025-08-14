@@ -5,13 +5,12 @@ const csv = require('csv-parser');
 const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
-const { MongoClient } = require('mongodb'); // ✅ MongoDB import
+const { MongoClient } = require('mongodb'); 
 
 const app = express();
 const PORT = 5000;
 
-// ===== MongoDB Connection =====
-const MONGO_URI = "mongodb://127.0.0.1:27017"; // Change if needed
+const MONGO_URI = "mongodb://127.0.0.1:27017"; 
 const DB_NAME = "dashboard_db";
 let db;
 
@@ -24,13 +23,12 @@ MongoClient.connect(MONGO_URI, { useUnifiedTopology: true })
     console.error("❌ MongoDB connection failed:", err);
   });
 
-// Middleware
+
 app.use(cors());
 app.use(express.json());
 
 const upload = multer({ dest: 'uploads/' });
 
-// Store uploaded data in memory so we can filter later
 let uploadedData = [];
 
 const statusList = [
@@ -116,7 +114,7 @@ function categorizeRows(rows) {
   return categories;
 }
 
-// Upload route
+
 app.post('/upload', upload.single('file'), (req, res) => {
   const file = req.file;
   if (!file) return res.status(400).json({ error: 'No file uploaded' });
@@ -130,7 +128,7 @@ app.post('/upload', upload.single('file'), (req, res) => {
       .on('data', (data) => results.push(data))
       .on('end', () => {
         fs.unlinkSync(file.path);
-        uploadedData = results; // Save in memory
+        uploadedData = results; 
         res.json(categorizeRows(results));
       });
   } else if (ext === '.xlsx' || ext === '.xls') {
@@ -138,7 +136,7 @@ app.post('/upload', upload.single('file'), (req, res) => {
     const sheetName = workbook.SheetNames[0];
     const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
     fs.unlinkSync(file.path);
-    uploadedData = jsonData; // Save in memory
+    uploadedData = jsonData; 
     res.json(categorizeRows(jsonData));
   } else {
     fs.unlinkSync(file.path);
@@ -146,7 +144,7 @@ app.post('/upload', upload.single('file'), (req, res) => {
   }
 });
 
-// Filter route
+
 app.get('/filter/:subOrderNo', (req, res) => {
   const subOrderNo = req.params.subOrderNo.trim().toLowerCase();
   
@@ -184,7 +182,7 @@ app.get('/filter/:subOrderNo', (req, res) => {
   });
 });
 
-// ✅ New route to handle Submit All and save to MongoDB
+
 app.post('/submit-all', async (req, res) => {
   try {
     const submittedData = req.body;
@@ -195,7 +193,7 @@ app.post('/submit-all', async (req, res) => {
 
     const collection = db.collection("dashboard_data");
 
-    // Insert into MongoDB
+    
     await collection.insertOne({
       submittedAt: new Date(),
       data: submittedData
@@ -211,5 +209,5 @@ app.post('/submit-all', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`✅ Server running on http://localhost:${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
 });

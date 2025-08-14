@@ -118,7 +118,7 @@ function App() {
     }
   };
 
-  // NEW: Submit all data to backend
+  
   const handleSubmitAll = async () => {
     try {
       const res = await axios.post("http://localhost:5000/submit-all", data, {
