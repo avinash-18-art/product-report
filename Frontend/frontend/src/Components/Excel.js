@@ -118,6 +118,19 @@ function App() {
     }
   };
 
+  // NEW: Submit all data to backend
+  const handleSubmitAll = async () => {
+    try {
+      const res = await axios.post("http://localhost:5000/submit-all", data, {
+        headers: { "Content-Type": "application/json" },
+      });
+      alert(res.data.message || "All data submitted successfully!");
+    } catch (err) {
+      console.error("Submit all failed", err);
+      alert("Failed to submit all data");
+    }
+  };
+
   return (
     <div className="App">
       <nav className="navbar">
@@ -192,6 +205,8 @@ function App() {
         )
       )}
 
+      
+     
       <div
         className={`upload-section ${dragActive ? 'drag-active' : ''}`}
         onDrop={handleDrop}
@@ -207,6 +222,23 @@ function App() {
         {file && <p className="filename">Selected File: {file.name}</p>}
         <button onClick={handleUpload}>Upload File</button>
       </div>
+       <div style={{ marginTop: "20px" }}>
+        <button 
+          onClick={handleSubmitAll} 
+          style={{
+            backgroundColor: "#28a745",
+            color: "#fff",
+            padding: "10px 20px",
+            border: "none",
+            borderRadius: "6px",
+            cursor: "pointer",
+            fontSize: "14px"
+          }}
+        >
+          Submit All
+        </button>
+      </div>
+
     </div>
   );
 }

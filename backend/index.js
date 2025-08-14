@@ -5,11 +5,29 @@ const csv = require('csv-parser');
 const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
+const { MongoClient } = require('mongodb'); // ✅ MongoDB import
 
 const app = express();
 const PORT = 5000;
 
+// ===== MongoDB Connection =====
+const MONGO_URI = "mongodb://127.0.0.1:27017"; // Change if needed
+const DB_NAME = "dashboard_db";
+let db;
+
+MongoClient.connect(MONGO_URI, { useUnifiedTopology: true })
+  .then(client => {
+    db = client.db(DB_NAME);
+    console.log("✅ Connected to MongoDB");
+  })
+  .catch(err => {
+    console.error("❌ MongoDB connection failed:", err);
+  });
+
+// Middleware
 app.use(cors());
+app.use(express.json());
+
 const upload = multer({ dest: 'uploads/' });
 
 // Store uploaded data in memory so we can filter later
@@ -128,7 +146,7 @@ app.post('/upload', upload.single('file'), (req, res) => {
   }
 });
 
-// New filter route
+// Filter route
 app.get('/filter/:subOrderNo', (req, res) => {
   const subOrderNo = req.params.subOrderNo.trim().toLowerCase();
   
@@ -164,6 +182,32 @@ app.get('/filter/:subOrderNo', (req, res) => {
     listedPrice,
     discountedPrice
   });
+});
+
+// ✅ New route to handle Submit All and save to MongoDB
+app.post('/submit-all', async (req, res) => {
+  try {
+    const submittedData = req.body;
+
+    if (!db) {
+      return res.status(500).json({ message: "Database not connected" });
+    }
+
+    const collection = db.collection("dashboard_data");
+
+    // Insert into MongoDB
+    await collection.insertOne({
+      submittedAt: new Date(),
+      data: submittedData
+    });
+
+    console.log("✅ Data inserted into MongoDB");
+    res.json({ message: "All data submitted and saved to MongoDB!" });
+
+  } catch (error) {
+    console.error("❌ Error saving to MongoDB:", error);
+    res.status(500).json({ message: "Failed to submit all data" });
+  }
 });
 
 app.listen(PORT, () => {
