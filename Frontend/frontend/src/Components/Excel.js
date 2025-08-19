@@ -21,6 +21,7 @@ function App() {
     sellInMonth: 0,
     totalProfit: 0,
     deliveredSupplierDiscountedPriceTotal: 0,
+    totalDoorStepExchanger: 0, // 🆕 new field for total door exchanger * 80
   });
 
   const [profitPercent, setProfitPercent] = useState(0);
@@ -76,7 +77,7 @@ function App() {
       const res = await axios.get(`http://localhost:5000/filter/${subOrderNo}`);
       setFilterResult(res.data);
 
-      const calcProfit = res.data.discountedPrice - res.data.listedPrice ;
+      const calcProfit = res.data.discountedPrice - res.data.listedPrice;
       const calcProfitPercent = res.data.discountedPrice
         ? (calcProfit / res.data.discountedPrice) * 100
         : 0;
@@ -99,7 +100,6 @@ function App() {
       const formData = new FormData();
       formData.append("file", file);
 
-      
       const uploadRes = await axios.post("http://localhost:5000/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -110,6 +110,8 @@ function App() {
       const totalProfit = result.totals?.totalProfit || 0;
       const deliveredTotalDiscounted =
         result.totals?.deliveredSupplierDiscountedPriceTotal || 0;
+      const totalDoorStepExchanger =
+        result.totals?.totalDoorStepExchanger || 0; // 🆕 new value
 
       const updatedData = {
         all: result.all?.length || 0,
@@ -125,6 +127,7 @@ function App() {
         sellInMonth: result.totals?.sellInMonth || 0,
         totalProfit,
         deliveredSupplierDiscountedPriceTotal: deliveredTotalDiscounted,
+        totalDoorStepExchanger, // 🆕 include in state
       };
 
       setData(updatedData);
@@ -133,12 +136,6 @@ function App() {
         ? (totalProfit / totalDiscounted) * 100
         : 0;
       setProfitPercent(calcProfitPercent.toFixed(2));
-
-      
-      await axios.post("http://localhost:5000/save-to-db", {
-        fileName: file.name,
-        processedData: updatedData,
-      });
 
       alert("File processed and data saved to MongoDB!");
     } catch (err) {
@@ -190,7 +187,15 @@ function App() {
         <div className="status-boxes">
           <div className="box all">All<br /><span>{data.all}</span></div>
           <div className="box rto">RTO<br /><span>{data.rto}</span></div>
-          <div className="box door_step_exchanged">Door Step Exchanged<br /><span>{data.door_step_exchanged}</span></div>
+          
+          <div className="box door_step_exchanged">
+            Door Step Exchanged<br /><span>{data.door_step_exchanged}</span>
+            <br/>
+             <small style={{ fontSize: "32px", color: "#222" }}>
+              {data.totalDoorStepExchanger.toLocaleString()}
+            </small>
+          </div>
+
           <div className="box delivered">
             Delivered<br />
             <span>{data.delivered}</span>
@@ -199,14 +204,29 @@ function App() {
               ₹{data.deliveredSupplierDiscountedPriceTotal.toLocaleString()}
             </small>
           </div>
+
           <div className="box cancelled">Cancelled<br /><span>{data.cancelled}</span></div>
           <div className="box ready_to_ship">Pending<br /><span>{data.ready_to_ship}</span></div>
           <div className="box shipped">Shipped<br /><span>{data.shipped}</span></div>
           <div className="box other">Other<br /><span>{data.other}</span></div>
-          <div className="box other">Supplier Listed Total Price<br /><span>{data.totalSupplierListedPrice.toLocaleString()}</span></div>
-          <div className="box other">Supplier Discounted Total Price<br /><span>{data.totalSupplierDiscountedPrice.toLocaleString()}</span></div>
-          <div className="box other">Total Profit<br /><span>{data.totalProfit.toLocaleString()}</span></div>
-          <div className="box other">Profit %<br /><span>{profitPercent}%</span></div>
+
+         
+
+          <div className="box other">
+            Supplier Listed Total Price<br />
+            <span>{data.totalSupplierListedPrice.toLocaleString()}</span>
+          </div>
+          <div className="box other">
+            Supplier Discounted Total Price<br />
+            <span>{data.totalSupplierDiscountedPrice.toLocaleString()}</span>
+          </div>
+          <div className="box other">
+            Total Profit<br />
+            <span>{data.totalProfit.toLocaleString()}</span>
+          </div>
+          <div className="box other">
+            Profit %<br /><span>{profitPercent}%</span>
+          </div>
         </div>
       ) : (
         filterResult && (
@@ -223,7 +243,6 @@ function App() {
         )
       )}
 
-      {/* Drag and Drop File Input */}
       <div
         className={`upload-section ${dragActive ? "drag-active" : ""}`}
         onDrop={handleDrop}

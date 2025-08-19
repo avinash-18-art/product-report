@@ -14,7 +14,6 @@ const MONGO_URI = "mongodb://127.0.0.1:27017";
 const DB_NAME = "dashboard_db";
 let db;
 
-// MongoDB Connection
 MongoClient.connect(MONGO_URI, { useUnifiedTopology: true })
   .then(client => {
     db = client.db(DB_NAME);
@@ -41,7 +40,6 @@ const statusList = [
   "supplier_discounted_price"
 ];
 
-// ✅ Helper Functions
 function parsePrice(value) {
   if (!value) return 0;
   let clean = value.toString().trim().replace(/[^0-9.\-]/g, '');
@@ -67,6 +65,7 @@ function categorizeRows(rows) {
   let sellInMonthProducts = 0;
   let totalProfit = 0;
   let deliveredSupplierDiscountedPriceTotal = 0;
+  let totalDoorStepExchanger = 0; // 🆕 New variable
 
   rows.forEach(row => {
     const status = (row['Reason for Credit Entry'] || '').toLowerCase().trim();
@@ -93,6 +92,11 @@ function categorizeRows(rows) {
       deliveredSupplierDiscountedPriceTotal += discountedPrice;
     }
 
+    // 🆕 Count Door Step Exchanger (×80)
+    if (status.includes('door_step_exchanged')) {
+      totalDoorStepExchanger += 80;
+    }
+
     let matched = false;
     if (status.includes('rto_complete') || status.includes('rto_locked') || status.includes('rto_initiated')) {
       categories["rto"].push(row);
@@ -114,13 +118,13 @@ function categorizeRows(rows) {
     totalSupplierDiscountedPrice,
     sellInMonthProducts,
     totalProfit,
-    deliveredSupplierDiscountedPriceTotal
+    deliveredSupplierDiscountedPriceTotal,
+    totalDoorStepExchanger // 🆕 Added to totals
   };
 
   return categories;
 }
 
-// ✅ Upload Endpoint
 app.post('/upload', upload.single('file'), async (req, res) => {
   const file = req.file;
   if (!file) return res.status(400).json({ error: 'No file uploaded' });
@@ -154,7 +158,6 @@ app.post('/upload', upload.single('file'), async (req, res) => {
   }
 });
 
-// ✅ Save to MongoDB
 async function saveToDB(rows, res) {
   if (!db) return res.status(500).json({ message: "MongoDB not connected yet" });
   if (!rows || !rows.length) return res.status(400).json({ message: "No data to save" });
@@ -175,13 +178,11 @@ async function saveToDB(rows, res) {
   }
 }
 
-// ✅ Fixed Filter Endpoint
 app.get('/filter/:subOrderNo', async (req, res) => {
   const subOrderNo = req.params.subOrderNo.trim().toLowerCase();
   if (!subOrderNo) return res.status(400).json({ error: "Sub Order No required" });
 
   try {
-    // Get latest uploaded data
     const result = await db.collection("dashboard_data")
       .find()
       .sort({ submittedAt: -1 })
@@ -192,9 +193,7 @@ app.get('/filter/:subOrderNo', async (req, res) => {
 
     const rows = result[0].data;
 
-    // Try to find row where Sub Order No matches
     const match = rows.find(row => {
-      // Look for possible "sub order no" column first
       const keys = Object.keys(row).map(k => k.toLowerCase());
       const subOrderKey = keys.find(k => k.includes("sub") && k.includes("order"));
       if (subOrderKey && row[subOrderKey] &&
@@ -202,7 +201,6 @@ app.get('/filter/:subOrderNo', async (req, res) => {
         return true;
       }
 
-      // Fallback: search all values
       return Object.values(row).some(v =>
         v && v.toString().trim().toLowerCase() === subOrderNo
       );
@@ -210,7 +208,6 @@ app.get('/filter/:subOrderNo', async (req, res) => {
 
     if (!match) return res.status(404).json({ error: "Sub Order No not found" });
 
-    // Extract prices
     const listedPrice = parsePrice(getColumnValue(match, [
       'Supplier Listed Price (Incl. GST + Commission)',
       'Supplier Listed Price',
@@ -237,7 +234,6 @@ app.get('/filter/:subOrderNo', async (req, res) => {
   }
 });
 
-// ✅ Profit Calculation
 app.post('/calculate', (req, res) => {
   const { listedPrice, discountedPrice } = req.body;
   if (listedPrice === undefined || discountedPrice === undefined)
@@ -248,5 +244,4 @@ app.post('/calculate', (req, res) => {
   res.json({ profit, profitPercent: profitPercent.toFixed(2) });
 });
 
-// ✅ Start Server
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
