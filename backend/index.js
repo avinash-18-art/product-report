@@ -14,6 +14,7 @@ const MONGO_URI = "mongodb://127.0.0.1:27017";
 const DB_NAME = "dashboard_db";
 let db;
 
+// ✅ MongoDB connection
 MongoClient.connect(MONGO_URI, { useUnifiedTopology: true })
   .then(client => {
     db = client.db(DB_NAME);
@@ -28,6 +29,7 @@ app.use(express.json());
 
 const upload = multer({ dest: 'uploads/' });
 
+// Possible statuses
 const statusList = [
   "all",
   "rto",
@@ -40,12 +42,14 @@ const statusList = [
   "supplier_discounted_price"
 ];
 
+// ✅ Parse prices safely
 function parsePrice(value) {
   if (!value) return 0;
   let clean = value.toString().trim().replace(/[^0-9.\-]/g, '');
   return parseFloat(clean) || 0;
 }
 
+// ✅ Flexible column mapping
 function getColumnValue(row, possibleNames) {
   const keys = Object.keys(row).map(k => k.toLowerCase().trim());
   for (let name of possibleNames) {
@@ -55,6 +59,7 @@ function getColumnValue(row, possibleNames) {
   return 0;
 }
 
+// ✅ Categorize rows & calculate totals
 function categorizeRows(rows) {
   const categories = {};
   statusList.forEach(status => categories[status] = []);
@@ -63,9 +68,8 @@ function categorizeRows(rows) {
   let totalSupplierListedPrice = 0;
   let totalSupplierDiscountedPrice = 0;
   let sellInMonthProducts = 0;
-  let totalProfit = 0;
   let deliveredSupplierDiscountedPriceTotal = 0;
-  let totalDoorStepExchanger = 0; // 🆕 New variable
+  let totalDoorStepExchanger = 0;
 
   rows.forEach(row => {
     const status = (row['Reason for Credit Entry'] || '').toLowerCase().trim();
@@ -85,16 +89,14 @@ function categorizeRows(rows) {
 
     totalSupplierListedPrice += listedPrice;
     totalSupplierDiscountedPrice += discountedPrice;
-    totalProfit += listedPrice - discountedPrice;
 
     if (status.includes('delivered')) {
       sellInMonthProducts += 1;
       deliveredSupplierDiscountedPriceTotal += discountedPrice;
     }
 
-    // 🆕 Count Door Step Exchanger (×80)
     if (status.includes('door_step_exchanged')) {
-      totalDoorStepExchanger += 80;
+      totalDoorStepExchanger += 80; // fixed per record
     }
 
     let matched = false;
@@ -113,18 +115,22 @@ function categorizeRows(rows) {
     if (!matched) categories.other.push(row);
   });
 
+  // ✅ Profit formula applied here
+  const totalProfit =  deliveredSupplierDiscountedPriceTotal - (sellInMonthProducts * 500);
+
   categories.totals = {
     totalSupplierListedPrice,
     totalSupplierDiscountedPrice,
     sellInMonthProducts,
-    totalProfit,
     deliveredSupplierDiscountedPriceTotal,
-    totalDoorStepExchanger // 🆕 Added to totals
+    totalDoorStepExchanger,
+    totalProfit
   };
 
   return categories;
 }
 
+// ✅ Upload route (CSV/XLSX)
 app.post('/upload', upload.single('file'), async (req, res) => {
   const file = req.file;
   if (!file) return res.status(400).json({ error: 'No file uploaded' });
@@ -134,7 +140,6 @@ app.post('/upload', upload.single('file'), async (req, res) => {
 
   try {
     if (ext === '.csv') {
-      rows = [];
       fs.createReadStream(file.path)
         .pipe(csv())
         .on('data', data => rows.push(data))
@@ -158,6 +163,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
   }
 });
 
+// ✅ Save parsed data to MongoDB
 async function saveToDB(rows, res) {
   if (!db) return res.status(500).json({ message: "MongoDB not connected yet" });
   if (!rows || !rows.length) return res.status(400).json({ message: "No data to save" });
@@ -178,6 +184,7 @@ async function saveToDB(rows, res) {
   }
 }
 
+// ✅ Filter route (per SubOrderNo)
 app.get('/filter/:subOrderNo', async (req, res) => {
   const subOrderNo = req.params.subOrderNo.trim().toLowerCase();
   if (!subOrderNo) return res.status(400).json({ error: "Sub Order No required" });
@@ -225,7 +232,7 @@ app.get('/filter/:subOrderNo', async (req, res) => {
       subOrderNo,
       listedPrice,
       discountedPrice,
-      profit: listedPrice - discountedPrice
+      profit: 500 - discountedPrice  // ✅ per order profit formula
     });
 
   } catch (err) {
@@ -234,12 +241,13 @@ app.get('/filter/:subOrderNo', async (req, res) => {
   }
 });
 
+// ✅ Extra profit calculation endpoint
 app.post('/calculate', (req, res) => {
   const { listedPrice, discountedPrice } = req.body;
   if (listedPrice === undefined || discountedPrice === undefined)
     return res.status(400).json({ error: 'Both prices are required' });
 
-  const profit = listedPrice - discountedPrice;
+  const profit = 500 - discountedPrice; // fixed profit formula
   const profitPercent = discountedPrice !== 0 ? (profit / discountedPrice) * 100 : 0;
   res.json({ profit, profitPercent: profitPercent.toFixed(2) });
 });

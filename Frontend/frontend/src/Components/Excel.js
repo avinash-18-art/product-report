@@ -21,7 +21,7 @@ function App() {
     sellInMonth: 0,
     totalProfit: 0,
     deliveredSupplierDiscountedPriceTotal: 0,
-    totalDoorStepExchanger: 0, // 🆕 new field for total door exchanger * 80
+    totalDoorStepExchanger: 0,
   });
 
   const [profitPercent, setProfitPercent] = useState(0);
@@ -67,6 +67,7 @@ function App() {
     setDragActive(false);
   };
 
+  // ✅ Filter single Sub Order
   const handleFilter = async () => {
     if (!subOrderNo) {
       alert("Please enter a Sub Order No.");
@@ -77,10 +78,11 @@ function App() {
       const res = await axios.get(`http://localhost:5000/filter/${subOrderNo}`);
       setFilterResult(res.data);
 
-      const calcProfit = res.data.discountedPrice - res.data.listedPrice;
-      const calcProfitPercent = res.data.discountedPrice
-        ? (calcProfit / res.data.discountedPrice) * 100
-        : 0;
+      // Profit per product = 500 - discountedPrice
+      const calcProfit = 500 - res.data.discountedPrice;
+
+      // ✅ Profit % (per product) = (profit / 500) * 100
+      const calcProfitPercent = (calcProfit / 500) * 100;
 
       setProfitPercent(calcProfitPercent.toFixed(2));
       setShowFilteredView(true);
@@ -90,6 +92,7 @@ function App() {
     }
   };
 
+  // ✅ Handle File Upload
   const handleSubmitAll = async () => {
     if (!file) {
       alert("Please select a file first");
@@ -111,7 +114,8 @@ function App() {
       const deliveredTotalDiscounted =
         result.totals?.deliveredSupplierDiscountedPriceTotal || 0;
       const totalDoorStepExchanger =
-        result.totals?.totalDoorStepExchanger || 0; // 🆕 new value
+        result.totals?.totalDoorStepExchanger || 0;
+      const sellInMonthProducts = result.totals?.sellInMonthProducts || 0;
 
       const updatedData = {
         all: result.all?.length || 0,
@@ -124,17 +128,20 @@ function App() {
         other: result.other?.length || 0,
         totalSupplierListedPrice: totalListed,
         totalSupplierDiscountedPrice: totalDiscounted,
-        sellInMonth: result.totals?.sellInMonth || 0,
+        sellInMonth: sellInMonthProducts,
         totalProfit,
         deliveredSupplierDiscountedPriceTotal: deliveredTotalDiscounted,
-        totalDoorStepExchanger, // 🆕 include in state
+        totalDoorStepExchanger,
       };
 
       setData(updatedData);
 
-      const calcProfitPercent = totalDiscounted
-        ? (totalProfit / totalDiscounted) * 100
-        : 0;
+      // ✅ Profit % = (totalProfit / (sellInMonthProducts * 500)) * 100
+      const calcProfitPercent =
+        sellInMonthProducts > 0
+          ? (totalProfit / (sellInMonthProducts * 500)) * 100
+          : 0;
+
       setProfitPercent(calcProfitPercent.toFixed(2));
 
       alert("File processed and data saved to MongoDB!");
@@ -191,7 +198,7 @@ function App() {
           <div className="box door_step_exchanged">
             Door Step Exchanged<br /><span>{data.door_step_exchanged}</span>
             <br/>
-             <small style={{ fontSize: "32px", color: "#222" }}>
+            <small style={{ fontSize: "32px", color: "#222" }}>
               {data.totalDoorStepExchanger.toLocaleString()}
             </small>
           </div>
@@ -209,8 +216,6 @@ function App() {
           <div className="box ready_to_ship">Pending<br /><span>{data.ready_to_ship}</span></div>
           <div className="box shipped">Shipped<br /><span>{data.shipped}</span></div>
           <div className="box other">Other<br /><span>{data.other}</span></div>
-
-         
 
           <div className="box other">
             Supplier Listed Total Price<br />
@@ -238,6 +243,13 @@ function App() {
             <div className="box other">
               Supplier Discounted Price<br />
               <span>{filterResult.discountedPrice.toLocaleString()}</span>
+            </div>
+            <div className="box other">
+              Profit (per product)<br />
+              <span>{(500 - filterResult.discountedPrice).toLocaleString()}</span>
+            </div>
+            <div className="box other">
+              Profit %<br /><span>{profitPercent}%</span>
             </div>
           </div>
         )
