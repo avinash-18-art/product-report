@@ -6,7 +6,6 @@ function App() {
   const [file, setFile] = useState(null);
   const [subOrderNo, setSubOrderNo] = useState("");
   const [filterResult, setFilterResult] = useState(null);
-
   const [data, setData] = useState({
     all: 0,
     rto: 0,
@@ -28,14 +27,46 @@ function App() {
   const [dragActive, setDragActive] = useState(false);
   const [showFilteredView, setShowFilteredView] = useState(false);
 
+  // ✅ Fix PDF download
+  const handleDownload = () => {
+    fetch("http://localhost:5000/download", {
+      method: "GET",
+      headers: {
+        Accept: "application/pdf",
+      },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to download");
+        return res.blob();
+      })
+      .then((blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", "dashboard-report.pdf");
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      })
+      .catch((err) => {
+        console.error("Download error:", err);
+        alert("❌ Failed to download PDF. Please try again.");
+      });
+  };
+
+  // ✅ File validation
+  const validateFile = (file) => {
+    return (
+      file &&
+      (file.name.endsWith(".csv") ||
+        file.name.endsWith(".xlsx") ||
+        file.name.endsWith(".xls"))
+    );
+  };
+
   const handleFileChange = (e) => {
     const selectedFile = e.target.files?.[0];
-    if (
-      selectedFile &&
-      (selectedFile.name.endsWith(".csv") ||
-        selectedFile.name.endsWith(".xlsx") ||
-        selectedFile.name.endsWith(".xls"))
-    ) {
+    if (validateFile(selectedFile)) {
       setFile(selectedFile);
     } else {
       alert("Please upload a valid CSV or Excel file");
@@ -46,12 +77,7 @@ function App() {
     e.preventDefault();
     setDragActive(false);
     const droppedFile = e.dataTransfer.files[0];
-    if (
-      droppedFile &&
-      (droppedFile.name.endsWith(".csv") ||
-        droppedFile.name.endsWith(".xlsx") ||
-        droppedFile.name.endsWith(".xls"))
-    ) {
+    if (validateFile(droppedFile)) {
       setFile(droppedFile);
     } else {
       alert("Only .csv or .xlsx files are supported");
@@ -67,23 +93,18 @@ function App() {
     setDragActive(false);
   };
 
-  // ✅ Filter single Sub Order
+  // ✅ Filter handler
   const handleFilter = async () => {
     if (!subOrderNo) {
       alert("Please enter a Sub Order No.");
       return;
     }
-
     try {
       const res = await axios.get(`http://localhost:5000/filter/${subOrderNo}`);
       setFilterResult(res.data);
 
-      // Profit per product = 500 - discountedPrice
       const calcProfit = 500 - res.data.discountedPrice;
-
-      // ✅ Profit % (per product) = (profit / 500) * 100
       const calcProfitPercent = (calcProfit / 500) * 100;
-
       setProfitPercent(calcProfitPercent.toFixed(2));
       setShowFilteredView(true);
     } catch (err) {
@@ -92,7 +113,7 @@ function App() {
     }
   };
 
-  // ✅ Handle File Upload
+  // ✅ Upload + save handler
   const handleSubmitAll = async () => {
     if (!file) {
       alert("Please select a file first");
@@ -136,7 +157,6 @@ function App() {
 
       setData(updatedData);
 
-      // ✅ Profit % = (totalProfit / (sellInMonthProducts * 500)) * 100
       const calcProfitPercent =
         sellInMonthProducts > 0
           ? (totalProfit / (sellInMonthProducts * 500)) * 100
@@ -144,10 +164,10 @@ function App() {
 
       setProfitPercent(calcProfitPercent.toFixed(2));
 
-      alert("File processed and data saved to MongoDB!");
+      alert("✅ File processed and data saved to MongoDB!");
     } catch (err) {
       console.error("Submit all failed", err);
-      alert("Failed to process & store data");
+      alert("❌ Failed to process & store data");
     }
   };
 
@@ -155,7 +175,6 @@ function App() {
     <div className="App">
       <nav className="navbar">
         <div className="navbar-logo">Meesho</div>
-
         <div className="navbar-search">
           <input
             type="search"
@@ -163,23 +182,15 @@ function App() {
             value={subOrderNo}
             onChange={(e) => setSubOrderNo(e.target.value)}
           />
-          <button className="filter-btn" onClick={handleFilter}>
+          <button className="back-btn" onClick={handleFilter}>
             Filter
           </button>
           {showFilteredView && (
             <button
               className="back-btn"
-              onClick={() => setShowFilteredView(false)}
-              style={{
-                marginLeft: "8px",
-                padding: "4px 8px",
-                fontSize: "12px",
-                backgroundColor: "#ccc",
-                border: "none",
-                borderRadius: "8px",
-                cursor: "pointer",
-                height: "38px",
-                width: "60px",
+              onClick={() => {
+                setShowFilteredView(false);
+                setProfitPercent(0); // ✅ reset
               }}
             >
               Back
@@ -194,7 +205,7 @@ function App() {
         <div className="status-boxes">
           <div className="box all">All<br /><span>{data.all}</span></div>
           <div className="box rto">RTO<br /><span>{data.rto}</span></div>
-          
+
           <div className="box door_step_exchanged">
             Door Step Exchanged<br /><span>{data.door_step_exchanged}</span>
             <br/>
@@ -273,6 +284,7 @@ function App() {
       <div style={{ marginTop: "20px" }}>
         <button
           onClick={handleSubmitAll}
+          disabled={!file} // ✅ disable if no file
           style={{
             backgroundColor: "#28a745",
             color: "#fff",
@@ -281,9 +293,24 @@ function App() {
             borderRadius: "6px",
             cursor: "pointer",
             fontSize: "14px",
+            marginRight: "10px"
           }}
         >
           Submit All (Upload & Save)
+        </button>
+        <button
+          onClick={handleDownload}
+          style={{
+            backgroundColor: "#007bff",
+            color: "#fff",
+            padding: "10px 20px",
+            border: "none",
+            borderRadius: "6px",
+            cursor: "pointer",
+            fontSize: "14px",
+          }}
+        >
+          Download PDF
         </button>
       </div>
     </div>
