@@ -1,11 +1,22 @@
 import React, { useState } from "react";
 import axios from "axios";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 import "./Excel.css";
 
 function App() {
   const [file, setFile] = useState(null);
   const [subOrderNo, setSubOrderNo] = useState("");
   const [filterResult, setFilterResult] = useState(null);
+  const [graphData, setGraphData] = useState([]);
+  const [showGraph, setShowGraph] = useState(false);
   const [data, setData] = useState({
     all: 0,
     rto: 0,
@@ -27,13 +38,11 @@ function App() {
   const [dragActive, setDragActive] = useState(false);
   const [showFilteredView, setShowFilteredView] = useState(false);
 
-  // ✅ Fix PDF download
+  // ✅ Download PDF
   const handleDownload = () => {
-    fetch("http://localhost:5000/download", {
+    fetch("http://localhost:5000/download-pdf", {
       method: "GET",
-      headers: {
-        Accept: "application/pdf",
-      },
+      headers: { Accept: "application/pdf" },
     })
       .then((res) => {
         if (!res.ok) throw new Error("Failed to download");
@@ -50,11 +59,11 @@ function App() {
       })
       .catch((err) => {
         console.error("Download error:", err);
-        alert("❌ Failed to download PDF. Please try again.");
+        alert("Failed to download PDF. Please try again.");
       });
   };
 
-  // ✅ File validation
+  // ✅ File Validation
   const validateFile = (file) => {
     return (
       file &&
@@ -64,6 +73,7 @@ function App() {
     );
   };
 
+  // ✅ File Input
   const handleFileChange = (e) => {
     const selectedFile = e.target.files?.[0];
     if (validateFile(selectedFile)) {
@@ -73,6 +83,7 @@ function App() {
     }
   };
 
+  // ✅ Drag & Drop
   const handleDrop = (e) => {
     e.preventDefault();
     setDragActive(false);
@@ -93,14 +104,16 @@ function App() {
     setDragActive(false);
   };
 
-  // ✅ Filter handler
+  // ✅ Filter Sub Order
   const handleFilter = async () => {
     if (!subOrderNo) {
       alert("Please enter a Sub Order No.");
       return;
     }
     try {
-      const res = await axios.get(`http://localhost:5000/filter/${subOrderNo}`);
+      const res = await axios.get(
+        `http://localhost:5000/filter/${subOrderNo}`
+      );
       setFilterResult(res.data);
 
       const calcProfit = 500 - res.data.discountedPrice;
@@ -113,7 +126,7 @@ function App() {
     }
   };
 
-  // ✅ Upload + save handler
+  // ✅ Upload & Process File
   const handleSubmitAll = async () => {
     if (!file) {
       alert("Please select a file first");
@@ -161,18 +174,31 @@ function App() {
         sellInMonthProducts > 0
           ? (totalProfit / (sellInMonthProducts * 500)) * 100
           : 0;
-
       setProfitPercent(calcProfitPercent.toFixed(2));
 
-      alert("✅ File processed and data saved to MongoDB!");
+      if (result.profitByDate) {
+        let graphArr = [];
+        if (!Array.isArray(result.profitByDate)) {
+          graphArr = Object.entries(result.profitByDate).map(([date, profit]) => ({
+            date,
+            profit,
+          }));
+        } else {
+          graphArr = result.profitByDate;
+        }
+        setGraphData(graphArr);
+      }
+
+      alert("File processed and data saved to MongoDB!");
     } catch (err) {
       console.error("Submit all failed", err);
-      alert("❌ Failed to process & store data");
+      alert("Failed to process & store data");
     }
   };
 
   return (
     <div className="App">
+      {/* Navbar */}
       <nav className="navbar">
         <div className="navbar-logo">Meesho</div>
         <div className="navbar-search">
@@ -190,7 +216,7 @@ function App() {
               className="back-btn"
               onClick={() => {
                 setShowFilteredView(false);
-                setProfitPercent(0); // ✅ reset
+                setProfitPercent(0);
               }}
             >
               Back
@@ -201,33 +227,29 @@ function App() {
 
       <h1 className="heading">Product Status Dashboard</h1>
 
+      {/* Main Dashboard */}
       {!showFilteredView ? (
         <div className="status-boxes">
           <div className="box all">All<br /><span>{data.all}</span></div>
           <div className="box rto">RTO<br /><span>{data.rto}</span></div>
-
           <div className="box door_step_exchanged">
             Door Step Exchanged<br /><span>{data.door_step_exchanged}</span>
-            <br/>
+            <br />
             <small style={{ fontSize: "32px", color: "#222" }}>
               {data.totalDoorStepExchanger.toLocaleString()}
             </small>
           </div>
-
           <div className="box delivered">
-            Delivered<br />
-            <span>{data.delivered}</span>
+            Delivered<br /><span>{data.delivered}</span>
             <br />
             <small style={{ fontSize: "32px", color: "#222" }}>
               ₹{data.deliveredSupplierDiscountedPriceTotal.toLocaleString()}
             </small>
           </div>
-
           <div className="box cancelled">Cancelled<br /><span>{data.cancelled}</span></div>
           <div className="box ready_to_ship">Pending<br /><span>{data.ready_to_ship}</span></div>
           <div className="box shipped">Shipped<br /><span>{data.shipped}</span></div>
           <div className="box other">Other<br /><span>{data.other}</span></div>
-
           <div className="box other">
             Supplier Listed Total Price<br />
             <span>{data.totalSupplierListedPrice.toLocaleString()}</span>
@@ -266,6 +288,50 @@ function App() {
         )
       )}
 
+      {/* Profit Graph */}
+      <div style={{ margin: "20px 0" }}>
+        <button
+          onClick={() => setShowGraph(!showGraph)}
+          style={{
+            backgroundColor: "#17a2b8",
+            color: "#fff",
+            padding: "10px 20px",
+            border: "none",
+            borderRadius: "6px",
+            cursor: "pointer",
+            fontSize: "14px",
+          }}
+        >
+          {showGraph ? "Hide Profit Graph" : "Show Profit Graph"}
+        </button>
+      </div>
+
+    {showGraph && graphData.length > 0 && (
+  <div className="graph-container">
+    <h2 className="graph-title">📈 Profit Trend (Per Date)</h2>
+    <ResponsiveContainer>
+      <LineChart data={graphData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="5 5" stroke="#ddd" />
+        <XAxis dataKey="date" tick={{ fontSize: 12, fill: "black" }} />
+        <YAxis tick={{ fontSize: 12, fill: "black" }} />
+        <Tooltip
+          contentStyle={{ backgroundColor: "#fff", borderRadius: "8px", border: "1px solid #ccc" }}
+          labelStyle={{ fontWeight: "bold", color: "#333" }}
+        />
+        <Line
+          type="monotone"
+          dataKey="profit"
+          stroke="#007bff"
+          strokeWidth={3}
+          dot={{ r: 5, stroke: "#007bff", strokeWidth: 2, fill: "#fff" }}
+          activeDot={{ r: 8 }}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  </div>
+)}
+
+      {/* File Upload */}
       <div
         className={`upload-section ${dragActive ? "drag-active" : ""}`}
         onDrop={handleDrop}
@@ -273,18 +339,15 @@ function App() {
         onDragLeave={handleDragLeave}
       >
         <p>Drag and drop your CSV or Excel file here</p>
-        <input
-          type="file"
-          accept=".csv, .xlsx, .xls"
-          onChange={handleFileChange}
-        />
+        <input type="file" accept=".csv, .xlsx, .xls" onChange={handleFileChange} />
         {file && <p className="filename">Selected File: {file.name}</p>}
       </div>
 
+      {/* Action Buttons */}
       <div style={{ marginTop: "20px" }}>
         <button
           onClick={handleSubmitAll}
-          disabled={!file} // ✅ disable if no file
+          disabled={!file}
           style={{
             backgroundColor: "#28a745",
             color: "#fff",
@@ -293,7 +356,7 @@ function App() {
             borderRadius: "6px",
             cursor: "pointer",
             fontSize: "14px",
-            marginRight: "10px"
+            marginRight: "10px",
           }}
         >
           Submit All (Upload & Save)
