@@ -7,11 +7,13 @@ const path = require("path");
 const cors = require("cors");
 const { MongoClient } = require("mongodb");
 const PDFDocument = require("pdfkit");
+require("dotenv").config();
+
 
 const app = express();
-const PORT = 5000;
-const MONGO_URI = "mongodb://127.0.0.1:27017";
-const DB_NAME = "dashboard_db";
+const PORT = process.env.PORT || 5000;
+const MONGO_URI = process.env.MONGO_URI;
+const DB_NAME = process.env.DB_NAME;
 let db;
 
 // ===== MongoDB connection =====
@@ -25,7 +27,7 @@ MongoClient.connect(MONGO_URI, { useUnifiedTopology: true })
   });
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json()); 
 const upload = multer({ dest: "uploads/" });
 
 // ===== Status list =====
